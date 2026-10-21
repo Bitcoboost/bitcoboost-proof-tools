@@ -1,0 +1,41 @@
+name: 'BitcoBoost Proof - verify'
+description: 'Verifies that a file (or a SHA-256 fingerprint) is registered on the BitcoBoost chain with BitcoBoost Proof, reading the chain independently.'
+author: 'BitcoBoost team'
+inputs:
+  file:
+    description: 'Path of the file to verify (its SHA-256 is computed in the runner; the file is never uploaded)'
+    required: false
+  hash:
+    description: 'A SHA-256 fingerprint (64 hex) instead of a file'
+    required: false
+  txid:
+    description: 'Transaction id from the Proof certificate (recommended: fully independent check)'
+    required: false
+  explorer:
+    description: 'Block explorer base URL'
+    required: false
+    default: 'https://explorer.bitcoboost.com'
+  rpc:
+    description: 'Your own node, http://user:password@host:port (overrides explorer)'
+    required: false
+outputs:
+  result:
+    description: 'VERIFIED, NOT VERIFIED, NOT REGISTERED, PENDING or ERROR'
+    value: ${{ steps.verify.outputs.result }}
+runs:
+  using: 'composite'
+  steps:
+    - id: verify
+      shell: bash
+      run: |
+        set +e
+        ARGS=()
+        [ -n "${{ inputs.file }}" ] && ARGS+=("${{ inputs.file }}")
+        [ -n "${{ inputs.hash }}" ] && ARGS+=(--hash "${{ inputs.hash }}")
+        [ -n "${{ inputs.txid }}" ] && ARGS+=(--txid "${{ inputs.txid }}")
+        [ -n "${{ inputs.explorer }}" ] && ARGS+=(--explorer "${{ inputs.explorer }}")
+        [ -n "${{ inputs.rpc }}" ] && ARGS+=(--rpc "${{ inputs.rpc }}")
+        OUT=$(python3 "${{ github.action_path }}/bbproof_verify.py" "${ARGS[@]}" --json); CODE=$?
+        echo "$OUT"
+        echo "result=$(echo "$OUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("result",""))')" >> "$GITHUB_OUTPUT"
+        exit $CODE
